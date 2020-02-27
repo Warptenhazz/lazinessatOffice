@@ -1,0 +1,61 @@
+#Para importar los archivos mas recientes de BD
+import glob
+import os
+import shutil
+#Para hacer las operaciones entra las hojas
+from win32com.client import Dispatch
+import openpyxl as xl
+import warnings
+warnings.filterwarnings('ignore')
+
+#--------------------------------------------------------------------------------------------------------------------------------------
+#Paso cero. Traer los archivos mas recientes a una sola carpeta.
+#Es importante que estos archivos estén unificados en una carpeta por
+#		1) Tener trazabilidad de que se esta subiendo al informe
+#		2) Porque con todo en un solo lado es mas facil crear un solo archivo
+#		3) Es mas facil para Power BI importar un solo archivo con diferentes hojas
+def importarBD(rutaEntrada,rutaSalida):
+	newest = max(glob.iglob(rutaEntrada), key=os.path.getctime)
+	print(newest)
+	f = open(newest,'r')
+	shutil.copy(newest,rutaSalida)
+
+#Importar BD MO
+importarBD('C:/XX/XXX/','C:/XX/XXX/')
+#Importar BD MQ
+importarBD('C:/XX/XXX/',"C:/XX/XXX/")
+
+#--------------------------------------------------------------------------------------------------------------------------------------
+#Paso uno. Eliminar todas las hojas de BD que hayan en el archivo principal relacionadas con las BD 
+#Esto es importante porque el archivo tiene que renovarse todos los dias con informacion nueva
+def eliminarHoja(archivo,nombre):
+	wb = xl.load_workbook(archivo)
+	nombresHojas = wb.get_sheet_names()
+	try:
+		std = wb.get_sheet_by_name(nombre)
+		wb.remove_sheet(std)
+		wb.save(archivo)
+	except:
+		print("No existe la hoja" + "\t" + str(nombre))
+#--------------------------------------------------------------------------------------------------------------------------------------
+#Paso dos. Importar las hojas que hayan de los archivos de BD.
+#Si salta error es porque no se eliminaron las hojas como deberia ser y quedan en el archivo, al momento de importarlas se generaría un duplicado y por eso salta el error
+def importarHoja(rutaOrigen,rutaDestino,nombre):
+	xl = Dispatch("Excel.Application")
+	wb1 = xl.Workbooks.Open(Filename=rutaOrigen)
+	wb2 = xl.Workbooks.Open(Filename=rutaDestino)
+	ws1 = wb1.Worksheets(1)
+	ws1.Copy(Before=wb2.Worksheets(1))
+	wb2.Worksheets(1).Name = nombre
+	wb1.Close(SaveChanges = False)
+	wb2.Close(SaveChanges = True)
+	del(wb1)
+	del(wb2)
+	xl.Quit
+	del(xl)
+	
+eliminarHoja("C:/XX/XXX/","BD MO")
+eliminarHoja("C:/XX/XXX/","BD MQ")
+importarHoja("C:/XX/XXX/", 	"C:/XX/XXX/","BD MQ")
+#importarHoja("C:/XX/XXX/", 	"C:/XX/XXX/","BD MO")	
+
